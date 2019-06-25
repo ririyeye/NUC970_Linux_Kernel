@@ -55,6 +55,7 @@
 #define SENSOR_NT99050	2
 #define SENSOR_OV5640		3
 #define SENSOR_TW9912		4
+#define SENSOR_OV2640		5
 u32 sensor_model = 1;
 /*****************************************************************************/
 
@@ -1501,6 +1502,8 @@ static struct v4l2_file_operations nuvoton_vdi_fops =
 	extern int nuvoton_vin_probe_ov7725(struct nuvoton_vin_device* cam);
 	#elif defined(CONFIG_SENSOR_OV5640)
 	extern int nuvoton_vin_probe_ov5640(struct nuvoton_vin_device* cam);
+	#elif defined(CONFIG_SENSOR_OV2640)
+	extern int nuvoton_vin_probe_ov2640(struct nuvoton_vin_device* cam);
 	#elif defined(CONFIG_SENSOR_NT99141)
 	extern int nuvoton_vin_probe_nt99141(struct nuvoton_vin_device* cam);
 	#elif defined(CONFIG_SENSOR_NT99050)
@@ -1511,6 +1514,7 @@ static struct v4l2_file_operations nuvoton_vdi_fops =
 #else
 	extern int nuvoton_vin_probe_ov7725(struct nuvoton_vin_device* cam);
 	extern int nuvoton_vin_probe_ov5640(struct nuvoton_vin_device* cam);
+	extern int nuvoton_vin_probe_ov2640(struct nuvoton_vin_device* cam);
 	extern int nuvoton_vin_probe_nt99141(struct nuvoton_vin_device* cam);
 	extern int nuvoton_vin_probe_nt99050(struct nuvoton_vin_device* cam);
 	extern int nuvoton_vin_probe_tw9912(struct nuvoton_vin_device* cam);
@@ -1552,6 +1556,11 @@ int nuvoton_vdi_device_register(void)
 				VDEBUG("Initialization failed. I will retry on open().");
 				return -EAGAIN;
 		  }
+	#elif defined(CONFIG_SENSOR_OV2640)
+			if(nuvoton_vin_probe_ov2640(cam)<0){  //sensor probe;
+				VDEBUG("Initialization failed. I will retry on open().");
+				return -EAGAIN;
+		  }
 	#elif defined(CONFIG_SENSOR_NT99141)
 			if(nuvoton_vin_probe_nt99141(cam)<0){  //sensor probe;
 				VDEBUG("Initialization failed. I will retry on open().");
@@ -1576,6 +1585,11 @@ int nuvoton_vdi_device_register(void)
 		  }
 	}else if(sensor_model==SENSOR_OV5640){
 			if(nuvoton_vin_probe_ov5640(cam)<0){  //sensor probe;
+				VDEBUG("Initialization failed. I will retry on open().");
+				return -EAGAIN;
+		  }
+	}else if(sensor_model==SENSOR_OV2640){
+			if(nuvoton_vin_probe_ov2640(cam)<0){  //sensor probe;
 				VDEBUG("Initialization failed. I will retry on open().");
 				return -EAGAIN;
 		  }
@@ -1724,6 +1738,8 @@ static int nuvoton_cap_device_probe(struct platform_device *pdev)
 			sensor_model = 3;
 		}else if(pstr[0]=='t' && pstr[1]=='w' && pstr[2]=='9' && pstr[3]=='9' && pstr[4]=='1' && pstr[5]=='2'){
 			sensor_model = 4;			
+		}else if(pstr[0]=='o' && pstr[1]=='v' && pstr[2]=='2' && pstr[3]=='6' && pstr[4]=='4' && pstr[5]=='0'){
+			sensor_model = 5;
 		}
 		
 		of_property_read_string(pdev->dev.of_node,"powerdown-pin",&pstr1);		
@@ -1771,6 +1787,8 @@ static int nuvoton_cap_device_resume(struct platform_device *pdev){
 		nuvoton_vin_probe_ov7725(nuvoton_cam[0]);
 	#elif defined(CONFIG_SENSOR_OV5640)
 		nuvoton_vin_probe_ov5640(nuvoton_cam[0]);
+	#elif defined(CONFIG_SENSOR_OV2640)
+		nuvoton_vin_probe_ov2640(nuvoton_cam[0]);
 	#elif defined(CONFIG_SENSOR_NT99141)
 		nuvoton_vin_probe_nt99141(nuvoton_cam[0]);
 	#elif defined(CONFIG_SENSOR_NT99050)
@@ -1783,6 +1801,8 @@ static int nuvoton_cap_device_resume(struct platform_device *pdev){
 		nuvoton_vin_probe_ov7725(nuvoton_cam[0]);
 	else if(sensor_model==SENSOR_OV5640)
 		nuvoton_vin_probe_ov5640(nuvoton_cam[0]);
+	else if(sensor_model==SENSOR_OV2640)
+		nuvoton_vin_probe_ov2640(nuvoton_cam[0]);
 	else if(sensor_model==SENSOR_NT99141)
 		nuvoton_vin_probe_nt99141(nuvoton_cam[0]);
 	else if(sensor_model==SENSOR_NT99050)

@@ -1408,6 +1408,9 @@ static struct i2c_board_info __initdata nuc970_i2c_clients2[] =
 #ifdef CONFIG_SENSOR_OV5640
 	{I2C_BOARD_INFO("ov5640",  0x3c),},
 #endif
+#ifdef CONFIG_SENSOR_OV2640
+	{I2C_BOARD_INFO("OV2640",  0x30),},
+#endif
 #ifdef CONFIG_SENSOR_NT99141
 	{I2C_BOARD_INFO("nt99141", 0x2a),},
 #endif
