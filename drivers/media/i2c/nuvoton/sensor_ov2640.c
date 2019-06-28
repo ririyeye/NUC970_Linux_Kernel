@@ -428,28 +428,32 @@ static struct nuvoton_vin_sensor ov2640 = {
 	.name = "ov2640",
 	.init = &ov2640_init,
 	.infmtord = (INORD_YUYV | INFMT_YCbCr | INTYPE_CCIR601),
-	.polarity = (VSP_HI | HSP_LO | PCLKP_HI),
-	.cropstart = (1 | 0 << 16), /*( Vertical | Horizontal<<16 ) */
+	//.polarity = (VSP_HI | HSP_LO | PCLKP_HI),
+	.polarity = (0 | 0 | PCLKP_HI),
+	.cropstart = (0 | 0 << 16), /*( Vertical | Horizontal<<16 ) */
+	//.cropstart = (1 | 0 << 16), /*( Vertical | Horizontal<<16 ) */
+
 	.cropcap = {
 		.bounds = {
 			.left = 0,
 			.top = 0,
-			.width = 1600,
-			.height = 1200,
+			.width = 640,
+			.height = 480,
 		},
 		.defrect = {
 			.left = 0,
 			.top = 0,
-			.width = 1600,
-			.height = 1200,
+			.width = 640,
+			.height = 480,
 		},
 	},
 	.pix_format = {
-		.width = 1600,
-		.height = 1200,
+		.width = 640,
+		.height = 480,
 		.pixelformat = V4L2_PIX_FMT_YUYV,
 		.priv = 16,
-		.colorspace = V4L2_COLORSPACE_JPEG,
+		//.colorspace = V4L2_COLORSPACE_JPEG,
+		.colorspace = V4L2_COLORSPACE_470_SYSTEM_BG,
 	},
 };
 #endif
@@ -464,7 +468,7 @@ const u8 ov2640_svga_init_reg_tbl[][2] =
 	//
 	0x11, 0x00,
 	0x09, 0x02,
-	0x04, 0xD8,//
+	0x04, 0xD8,
 	0x13, 0xe5,
 	0x14, 0x48,
 	0x2c, 0x0c,
@@ -519,8 +523,10 @@ const u8 ov2640_svga_init_reg_tbl[][2] =
 
 	0x3d, 0x34,
 	0x5a, 0x57,
-	//
+
+	
 	0x12, 0x40,//SVGA 800*600
+
 	0x17, 0x11,
 	0x18, 0x43,
 	0x19, 0x00,
@@ -629,7 +635,7 @@ const u8 ov2640_svga_init_reg_tbl[][2] =
 	0xb1, 0x94,
 	0xb2, 0x0f,
 	0xc4, 0x5c,
-	//
+	
 	0xc0, 0x64,
 	0xc1, 0x4B,
 	0x8c, 0x00,
@@ -640,9 +646,16 @@ const u8 ov2640_svga_init_reg_tbl[][2] =
 	0x53, 0x00,
 	0x54, 0x00,
 	0x55, 0x00,
-	0x5a, 0xC8,
-	0x5b, 0x96,
-	0x5c, 0x00,
+
+	/*800*600*/
+	//0x5a, 0xC8,
+	//0x5b, 0x96,
+	//0x5c, 0x00,
+
+	/*640*480*/
+		0x5a, 0xA0,
+		0x5b, 0x78,
+		0x5c, 0x00,
 
 	0xd3, 0x02,
 	//
@@ -657,7 +670,6 @@ const u8 ov2640_svga_init_reg_tbl[][2] =
 	0xdd, 0x7f,
 	0x05, 0x00,
 };
-
 
 
 static int ov2640initREG(struct nuvoton_vin_device* cam, struct i2c_client *pi2c)
