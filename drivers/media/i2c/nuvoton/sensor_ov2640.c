@@ -367,8 +367,8 @@ static struct OV_RegValue Init_RegValue[] =
 /************  I2C  *****************/
 static struct i2c_client *save_client;
 static char sensor_inited = 0;
-
-
+#define WIDTH_INIT (640)
+#define HEIGTH_INIT (480)
 
 static int sensor_probe(struct i2c_client *client,const struct i2c_device_id *did)
 {
@@ -394,36 +394,7 @@ static int ov2640_init(struct nuvoton_vin_device* cam)
 	LEAVE();		
 	return err;
 }
-#if 0
-static struct nuvoton_vin_sensor ov2640 = {
-	.name = "ov2640",
-	.init = &ov2640_init,
-	.infmtord = (INORD_YUYV | INFMT_YCbCr | INTYPE_CCIR601),
-	.polarity = (VSP_HI | HSP_LO | PCLKP_HI),
-	.cropstart = ( 1 | 0<<16 ), /*( Vertical | Horizontal<<16 ) */
-	.cropcap = {
-		.bounds = {
-			.left = 0,
-			.top = 0,
-			.width = 640,
-			.height = 480,
-		},
-		.defrect = {
-			.left = 0,
-			.top = 0,
-			.width = 800,
-			.height = 480,
-		},
-	},
-	.pix_format	 = {
-		.width = 640,
-		.height = 480,
-		.pixelformat = V4L2_PIX_FMT_YUYV,
-		.priv = 16,
-		.colorspace = V4L2_COLORSPACE_JPEG,
-	},
-};
-#else
+
 static struct nuvoton_vin_sensor ov2640 = {
 	.name = "ov2640",
 	.init = &ov2640_init,
@@ -437,26 +408,26 @@ static struct nuvoton_vin_sensor ov2640 = {
 		.bounds = {
 			.left = 0,
 			.top = 0,
-			.width = 640,
-			.height = 480,
+			.width = WIDTH_INIT,
+			.height = HEIGTH_INIT,
 		},
 		.defrect = {
 			.left = 0,
 			.top = 0,
-			.width = 640,
-			.height = 480,
+			.width = WIDTH_INIT,
+			.height = HEIGTH_INIT,
 		},
 	},
 	.pix_format = {
-		.width = 640,
-		.height = 480,
+		.width = WIDTH_INIT,
+		.height = HEIGTH_INIT,
 		.pixelformat = V4L2_PIX_FMT_YUYV,
 		.priv = 16,
 		//.colorspace = V4L2_COLORSPACE_JPEG,
 		.colorspace = V4L2_COLORSPACE_470_SYSTEM_BG,
 	},
 };
-#endif
+
 
 const u8 ov2640_svga_init_reg_tbl[][2] =
 {
@@ -647,15 +618,21 @@ const u8 ov2640_svga_init_reg_tbl[][2] =
 	0x54, 0x00,
 	0x55, 0x00,
 
+	0x5a,WIDTH_INIT / 4,
+	0x5b,HEIGTH_INIT / 4,
+	0x5c, 
+		(((WIDTH_INIT / 4) >> 8) & 0b11) << 0
+		| (((HEIGTH_INIT / 4) >> 8) & 0b1) << 2
+		,
 	/*800*600*/
 	//0x5a, 0xC8,
 	//0x5b, 0x96,
 	//0x5c, 0x00,
 
 	/*640*480*/
-		0x5a, 0xA0,
-		0x5b, 0x78,
-		0x5c, 0x00,
+		//0x5a, 0xA0,
+		//0x5b, 0x78,
+		//0x5c, 0x00,
 
 	0xd3, 0x02,
 	//
@@ -746,56 +723,6 @@ int nuvoton_vin_probe_ov2640(struct nuvoton_vin_device* cam)
 
 	ret = ov2640initREG(cam, save_client);
 
-	//i2c_smbus_write_byte_data(save_client, 0xff, 0x00);
-
-
-	//tmp = i2c_smbus_read_byte_data(save_client, 0xda);
-	//tmp &= 0xfe;
-	//i2c_smbus_write_byte_data(save_client, 0xda, tmp);
-
-	//tmp = i2c_smbus_read_byte_data(save_client, 0xda);
-	//tmp &= 0xef;
-	//i2c_smbus_write_byte_data(save_client, 0xda, tmp);
-
-	/*	
-	for(i=0;i<_REG_TABLE_SIZE(Init_RegValue); i++, psRegValue++)
-	{
-		int32_t ret;
-		printk(".");		
-		ret = sensor_write_ov5640((psRegValue->uRegAddr), (psRegValue->uValue));
-		if(psRegValue->uRegAddr==0x3008  && psRegValue->uValue==0x82)
-		{
-			for(j=0;j<0x20000;j++);
-			VDEBUG("Delay A loop for Reset Device\n");
-		}
-		if(ret<0)
-		{
-			VDEBUG("Wrong to write register addr = 0x%x, write data = 0x%x , ret = %d\n", (psRegValue->uRegAddr), (psRegValue->uValue), ret);		
-		}	
-	} 	
-	
-	psRegValue1=VGA_RegValue;
-	for(i=0;i<_REG_TABLE_SIZE(VGA_RegValue); i++, psRegValue++)
-	{
-		int32_t ret;
-		printk(".");		
-		ret = sensor_write_ov5640((psRegValue1->uRegAddr), (psRegValue1->uValue));
-		if(ret<0)
-		{
-			VDEBUG("Wrong to write register addr = 0x%x, write data = 0x%x , ret = %d\n", (psRegValue1->uRegAddr), (psRegValue1->uValue), ret);		
-		}	
-	} 	
-	//----------Read sensor id-------------------------------------	        
-	sensor_read_ov5640(0x302A,SensorID);  
-	//Chip Version 0xB0	
-	printk("Chip Version = 0x%02X(0xB0) \n", SensorID[0]);	
-	//-------------------------------------------------------------		
-	printk("\n");
-	if(ret>=0)
-		printk("driver i2c initial done\n");
-	else
-		printk("driver i2c initial fail\n");
-	*/
 	LEAVE();
 	return ret;	
 }
