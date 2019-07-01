@@ -248,7 +248,7 @@ struct OV_RegValue{
 #define REG60       0x60 /* AVGsel[31:24], 16-zone average weight option */
 #define HISTO_LOW   0x61 /* Histogram Algorithm Low Level */
 #define HISTO_HIGH  0x62 /* Histogram Algorithm High Level */
-
+#define ENDMARKER { 0xff, 0xff }
 					 /*
 					  * ID
 					  */
@@ -262,89 +262,7 @@ struct OV_RegValue{
 #define OV2640_PID				0X2642
 
 
-//当选择DSP地址(0XFF=0X00)时,OV2640的DSP寄存器地址映射表
-#define OV2640_DSP_R_BYPASS     0x05
-#define OV2640_DSP_Qs           0x44
-#define OV2640_DSP_CTRL         0x50
-#define OV2640_DSP_HSIZE1       0x51
-#define OV2640_DSP_VSIZE1       0x52
-#define OV2640_DSP_XOFFL        0x53
-#define OV2640_DSP_YOFFL        0x54
-#define OV2640_DSP_VHYX         0x55
-#define OV2640_DSP_DPRP         0x56
-#define OV2640_DSP_TEST         0x57
-#define OV2640_DSP_ZMOW         0x5A
-#define OV2640_DSP_ZMOH         0x5B
-#define OV2640_DSP_ZMHH         0x5C
-#define OV2640_DSP_BPADDR       0x7C
-#define OV2640_DSP_BPDATA       0x7D
-#define OV2640_DSP_CTRL2        0x86
-#define OV2640_DSP_CTRL3        0x87
-#define OV2640_DSP_SIZEL        0x8C
-#define OV2640_DSP_HSIZE2       0xC0
-#define OV2640_DSP_VSIZE2       0xC1
-#define OV2640_DSP_CTRL0        0xC2
-#define OV2640_DSP_CTRL1        0xC3
-#define OV2640_DSP_R_DVP_SP     0xD3
-#define OV2640_DSP_IMAGE_MODE   0xDA
-#define OV2640_DSP_RESET        0xE0
-#define OV2640_DSP_MS_SP        0xF0
-#define OV2640_DSP_SS_ID        0x7F
-#define OV2640_DSP_SS_CTRL      0xF8
-#define OV2640_DSP_MC_BIST      0xF9
-#define OV2640_DSP_MC_AL        0xFA
-#define OV2640_DSP_MC_AH        0xFB
-#define OV2640_DSP_MC_D         0xFC
-#define OV2640_DSP_P_STATUS     0xFE
-#define OV2640_DSP_RA_DLMT      0xFF 
 
-//当选择传感器地址(0XFF=0X01)时,OV2640的DSP寄存器地址映射表
-#define OV2640_SENSOR_GAIN       0x00
-#define OV2640_SENSOR_COM1       0x03
-#define OV2640_SENSOR_REG04      0x04
-#define OV2640_SENSOR_REG08      0x08
-#define OV2640_SENSOR_COM2       0x09
-#define OV2640_SENSOR_PIDH       0x0A
-#define OV2640_SENSOR_PIDL       0x0B
-#define OV2640_SENSOR_COM3       0x0C
-#define OV2640_SENSOR_COM4       0x0D
-#define OV2640_SENSOR_AEC        0x10
-#define OV2640_SENSOR_CLKRC      0x11
-#define OV2640_SENSOR_COM7       0x12
-#define OV2640_SENSOR_COM8       0x13
-#define OV2640_SENSOR_COM9       0x14
-#define OV2640_SENSOR_COM10      0x15
-#define OV2640_SENSOR_HREFST     0x17
-#define OV2640_SENSOR_HREFEND    0x18
-#define OV2640_SENSOR_VSTART     0x19
-#define OV2640_SENSOR_VEND       0x1A
-#define OV2640_SENSOR_MIDH       0x1C
-#define OV2640_SENSOR_MIDL       0x1D
-#define OV2640_SENSOR_AEW        0x24
-#define OV2640_SENSOR_AEB        0x25
-#define OV2640_SENSOR_W          0x26
-#define OV2640_SENSOR_REG2A      0x2A
-#define OV2640_SENSOR_FRARL      0x2B
-#define OV2640_SENSOR_ADDVSL     0x2D
-#define OV2640_SENSOR_ADDVHS     0x2E
-#define OV2640_SENSOR_YAVG       0x2F
-#define OV2640_SENSOR_REG32      0x32
-#define OV2640_SENSOR_ARCOM2     0x34
-#define OV2640_SENSOR_REG45      0x45
-#define OV2640_SENSOR_FLL        0x46
-#define OV2640_SENSOR_FLH        0x47
-#define OV2640_SENSOR_COM19      0x48
-#define OV2640_SENSOR_ZOOMS      0x49
-#define OV2640_SENSOR_COM22      0x4B
-#define OV2640_SENSOR_COM25      0x4E
-#define OV2640_SENSOR_BD50       0x4F
-#define OV2640_SENSOR_BD60       0x50
-#define OV2640_SENSOR_REG5D      0x5D
-#define OV2640_SENSOR_REG5E      0x5E
-#define OV2640_SENSOR_REG5F      0x5F
-#define OV2640_SENSOR_REG60      0x60
-#define OV2640_SENSOR_HISTO_LOW  0x61
-#define OV2640_SENSOR_HISTO_HIGH 0x62
 
 #define SCCB_WR_Reg(A,B) i2c_smbus_write_byte_data(pi2c,A,B)
 #define SCCB_RD_Reg(A) i2c_smbus_read_byte_data(pi2c,A)
@@ -367,8 +285,20 @@ static struct OV_RegValue Init_RegValue[] =
 /************  I2C  *****************/
 static struct i2c_client *save_client;
 static char sensor_inited = 0;
-#define WIDTH_INIT (640)
-#define HEIGTH_INIT (480)
+
+#define UXGA_WIDTH (1600)
+#define UXGA_HEIGHT (1200)
+
+#define VGA_WIDTH (640)
+#define VGA_HEIGHT (480)
+
+#if 0
+#define WIDTH_INIT VGA_WIDTH
+#define HEIGTH_INIT VGA_HEIGHT
+#else
+#define WIDTH_INIT UXGA_WIDTH
+#define HEIGTH_INIT UXGA_HEIGHT
+#endif
 
 static int sensor_probe(struct i2c_client *client,const struct i2c_device_id *did)
 {
@@ -429,230 +359,311 @@ static struct nuvoton_vin_sensor ov2640 = {
 };
 
 
-const u8 ov2640_svga_init_reg_tbl[][2] =
-{
-	0xff, 0x00,
-	0x2c, 0xff,
-	0x2e, 0xdf,
-	0xff, 0x01,
-	0x3c, 0x32,
-	//
-	0x11, 0x00,
-	0x09, 0x02,
-	0x04, 0xD8,
-	0x13, 0xe5,
-	0x14, 0x48,
-	0x2c, 0x0c,
-	0x33, 0x78,
-	0x3a, 0x33,
-	0x3b, 0xfB,
-	//
-	0x3e, 0x00,
-	0x43, 0x11,
-	0x16, 0x10,
-	//
-	0x39, 0x92,
-	//
-	0x35, 0xda,
-	0x22, 0x1a,
-	0x37, 0xc3,
-	0x23, 0x00,
-	0x34, 0xc0,
-	0x36, 0x1a,
-	0x06, 0x88,
-	0x07, 0xc0,
-	0x0d, 0x87,
-	0x0e, 0x41,
-	0x4c, 0x00,
-	0x48, 0x00,
-	0x5B, 0x00,
-	0x42, 0x03,
-	//
-	0x4a, 0x81,
-	0x21, 0x99,
-	//
-	0x24, 0x40,
-	0x25, 0x38,
-	0x26, 0x82,
-	0x5c, 0x00,
-	0x63, 0x00,
-	0x46, 0x22,
-	0x0c, 0x3c,
-	//
-	0x61, 0x70,
-	0x62, 0x80,
-	0x7c, 0x05,
-	//
-	0x20, 0x80,
-	0x28, 0x30,
-	0x6c, 0x00,
-	0x6d, 0x80,
-	0x6e, 0x00,
-	0x70, 0x02,
-	0x71, 0x94,
-	0x73, 0xc1,
-
-	0x3d, 0x34,
-	0x5a, 0x57,
-
-	
-	0x12, 0x40,//SVGA 800*600
-
-	0x17, 0x11,
-	0x18, 0x43,
-	0x19, 0x00,
-	0x1a, 0x4b,
-	0x32, 0x09,
-	0x37, 0xc0,
-	//
-	0x4f, 0xca,
-	0x50, 0xa8,
-	0x5a, 0x23,
-	0x6d, 0x00,
-	0x3d, 0x38,
-	//
-	0xff, 0x00,
-	0xe5, 0x7f,
-	0xf9, 0xc0,
-	0x41, 0x24,
-	0xe0, 0x14,
-	0x76, 0xff,
-	0x33, 0xa0,
-	0x42, 0x20,
-	0x43, 0x18,
-	0x4c, 0x00,
-	0x87, 0xd5,
-	0x88, 0x3f,
-	0xd7, 0x03,
-	0xd9, 0x10,
-	0xd3, 0x82,
-	//
-	0xc8, 0x08,
-	0xc9, 0x80,
-	//
-	0x7c, 0x00,
-	0x7d, 0x00,
-	0x7c, 0x03,
-	0x7d, 0x48,
-	0x7d, 0x48,
-	0x7c, 0x08,
-	0x7d, 0x20,
-	0x7d, 0x10,
-	0x7d, 0x0e,
-	//
-	0x90, 0x00,
-	0x91, 0x0e,
-	0x91, 0x1a,
-	0x91, 0x31,
-	0x91, 0x5a,
-	0x91, 0x69,
-	0x91, 0x75,
-	0x91, 0x7e,
-	0x91, 0x88,
-	0x91, 0x8f,
-	0x91, 0x96,
-	0x91, 0xa3,
-	0x91, 0xaf,
-	0x91, 0xc4,
-	0x91, 0xd7,
-	0x91, 0xe8,
-	0x91, 0x20,
-	//
-	0x92, 0x00,
-	0x93, 0x06,
-	0x93, 0xe3,
-	0x93, 0x05,
-	0x93, 0x05,
-	0x93, 0x00,
-	0x93, 0x04,
-	0x93, 0x00,
-	0x93, 0x00,
-	0x93, 0x00,
-	0x93, 0x00,
-	0x93, 0x00,
-	0x93, 0x00,
-	0x93, 0x00,
-	//
-	0x96, 0x00,
-	0x97, 0x08,
-	0x97, 0x19,
-	0x97, 0x02,
-	0x97, 0x0c,
-	0x97, 0x24,
-	0x97, 0x30,
-	0x97, 0x28,
-	0x97, 0x26,
-	0x97, 0x02,
-	0x97, 0x98,
-	0x97, 0x80,
-	0x97, 0x00,
-	0x97, 0x00,
-	//
-	0xc3, 0xed,
-	0xa4, 0x00,
-	0xa8, 0x00,
-	0xc5, 0x11,
-	0xc6, 0x51,
-	0xbf, 0x80,
-	0xc7, 0x10,
-	0xb6, 0x66,
-	0xb8, 0xA5,
-	0xb7, 0x64,
-	0xb9, 0x7C,
-	0xb3, 0xaf,
-	0xb4, 0x97,
-	0xb5, 0xFF,
-	0xb0, 0xC5,
-	0xb1, 0x94,
-	0xb2, 0x0f,
-	0xc4, 0x5c,
-	
-	0xc0, 0x64,
-	0xc1, 0x4B,
-	0x8c, 0x00,
-	0x86, 0x3D,
-	0x50, 0x00,
-	0x51, 0xC8,
-	0x52, 0x96,
-	0x53, 0x00,
-	0x54, 0x00,
-	0x55, 0x00,
-
-	0x5a,WIDTH_INIT / 4,
-	0x5b,HEIGTH_INIT / 4,
-	0x5c, 
-		(((WIDTH_INIT / 4) >> 8) & 0b11) << 0
-		| (((HEIGTH_INIT / 4) >> 8) & 0b1) << 2
-		,
-	/*800*600*/
-	//0x5a, 0xC8,
-	//0x5b, 0x96,
-	//0x5c, 0x00,
-
-	/*640*480*/
-		//0x5a, 0xA0,
-		//0x5b, 0x78,
-		//0x5c, 0x00,
-
-	0xd3, 0x02,
-	//
-	0xc3, 0xed,
-	0x7f, 0x00,
-
-	0xda, 0x00,
-
-	0xe5, 0x1f,
-	0xe1, 0x67,
-	0xe0, 0x00,
-	0xdd, 0x7f,
-	0x05, 0x00,
+static const struct regval_list ov2640_init_regs[] = {
+	{ BANK_SEL, BANK_SEL_DSP },
+	{ 0x2c,   0xff },
+	{ 0x2e,   0xdf },
+	{ BANK_SEL, BANK_SEL_SENS },
+	{ 0x3c,   0x32 },
+	{ CLKRC,  CLKRC_DIV_SET(1) },
+	{ COM2,   COM2_OCAP_Nx_SET(3) },
+	{ REG04,  REG04_DEF | REG04_HREF_EN },
+	{ COM8,   COM8_DEF | COM8_BNDF_EN | COM8_AGC_EN | COM8_AEC_EN },
+	{ COM9,   COM9_AGC_GAIN_8x | 0x08},
+	{ 0x2c,   0x0c },
+	{ 0x33,   0x78 },
+	{ 0x3a,   0x33 },
+	{ 0x3b,   0xfb },
+	{ 0x3e,   0x00 },
+	{ 0x43,   0x11 },
+	{ 0x16,   0x10 },
+	{ 0x39,   0x02 },
+	{ 0x35,   0x88 },
+	{ 0x22,   0x0a },
+	{ 0x37,   0x40 },
+	{ 0x23,   0x00 },
+	{ ARCOM2, 0xa0 },
+	{ 0x06,   0x02 },
+	{ 0x06,   0x88 },
+	{ 0x07,   0xc0 },
+	{ 0x0d,   0xb7 },
+	{ 0x0e,   0x01 },
+	{ 0x4c,   0x00 },
+	{ 0x4a,   0x81 },
+	{ 0x21,   0x99 },
+	{ AEW,    0x40 },
+	{ AEB,    0x38 },
+	{ VV,     VV_HIGH_TH_SET(0x08) | VV_LOW_TH_SET(0x02) },
+	{ 0x5c,   0x00 },
+	{ 0x63,   0x00 },
+	{ FLL,    0x22 },
+	{ COM3,   0x38 | COM3_BAND_AUTO },
+	{ REG5D,  0x55 },
+	{ REG5E,  0x7d },
+	{ REG5F,  0x7d },
+	{ REG60,  0x55 },
+	{ HISTO_LOW,   0x70 },
+	{ HISTO_HIGH,  0x80 },
+	{ 0x7c,   0x05 },
+	{ 0x20,   0x80 },
+	{ 0x28,   0x30 },
+	{ 0x6c,   0x00 },
+	{ 0x6d,   0x80 },
+	{ 0x6e,   0x00 },
+	{ 0x70,   0x02 },
+	{ 0x71,   0x94 },
+	{ 0x73,   0xc1 },
+	{ 0x3d,   0x34 },
+	{ COM7,   COM7_RES_UXGA | COM7_ZOOM_EN },
+	{ REG5A,  BD50_MAX_AEC_STEP_SET(6)
+		   | BD60_MAX_AEC_STEP_SET(8) },		/* 0x57 */
+	{ COM25,  COM25_50HZ_BANDING_AEC_MSBS_SET(0x0bb)
+		   | COM25_60HZ_BANDING_AEC_MSBS_SET(0x09c) },	/* 0x00 */
+	{ BD50,   BD50_50HZ_BANDING_AEC_LSBS_SET(0x0bb) },	/* 0xbb */
+	{ BD60,   BD60_60HZ_BANDING_AEC_LSBS_SET(0x09c) },	/* 0x9c */
+	{ BANK_SEL,  BANK_SEL_DSP },
+	{ 0xe5,   0x7f },
+	{ MC_BIST,  MC_BIST_RESET | MC_BIST_BOOT_ROM_SEL },
+	{ 0x41,   0x24 },
+	{ RESET,  RESET_JPEG | RESET_DVP },
+	{ 0x76,   0xff },
+	{ 0x33,   0xa0 },
+	{ 0x42,   0x20 },
+	{ 0x43,   0x18 },
+	{ 0x4c,   0x00 },
+	{ CTRL3,  CTRL3_BPC_EN | CTRL3_WPC_EN | 0x10 },
+	{ 0x88,   0x3f },
+	{ 0xd7,   0x03 },
+	{ 0xd9,   0x10 },
+	{ R_DVP_SP,  R_DVP_SP_AUTO_MODE | 0x2 },
+	{ 0xc8,   0x08 },
+	{ 0xc9,   0x80 },
+	{ BPADDR, 0x00 },
+	{ BPDATA, 0x00 },
+	{ BPADDR, 0x03 },
+	{ BPDATA, 0x48 },
+	{ BPDATA, 0x48 },
+	{ BPADDR, 0x08 },
+	{ BPDATA, 0x20 },
+	{ BPDATA, 0x10 },
+	{ BPDATA, 0x0e },
+	{ 0x90,   0x00 },
+	{ 0x91,   0x0e },
+	{ 0x91,   0x1a },
+	{ 0x91,   0x31 },
+	{ 0x91,   0x5a },
+	{ 0x91,   0x69 },
+	{ 0x91,   0x75 },
+	{ 0x91,   0x7e },
+	{ 0x91,   0x88 },
+	{ 0x91,   0x8f },
+	{ 0x91,   0x96 },
+	{ 0x91,   0xa3 },
+	{ 0x91,   0xaf },
+	{ 0x91,   0xc4 },
+	{ 0x91,   0xd7 },
+	{ 0x91,   0xe8 },
+	{ 0x91,   0x20 },
+	{ 0x92,   0x00 },
+	{ 0x93,   0x06 },
+	{ 0x93,   0xe3 },
+	{ 0x93,   0x03 },
+	{ 0x93,   0x03 },
+	{ 0x93,   0x00 },
+	{ 0x93,   0x02 },
+	{ 0x93,   0x00 },
+	{ 0x93,   0x00 },
+	{ 0x93,   0x00 },
+	{ 0x93,   0x00 },
+	{ 0x93,   0x00 },
+	{ 0x93,   0x00 },
+	{ 0x93,   0x00 },
+	{ 0x96,   0x00 },
+	{ 0x97,   0x08 },
+	{ 0x97,   0x19 },
+	{ 0x97,   0x02 },
+	{ 0x97,   0x0c },
+	{ 0x97,   0x24 },
+	{ 0x97,   0x30 },
+	{ 0x97,   0x28 },
+	{ 0x97,   0x26 },
+	{ 0x97,   0x02 },
+	{ 0x97,   0x98 },
+	{ 0x97,   0x80 },
+	{ 0x97,   0x00 },
+	{ 0x97,   0x00 },
+	{ 0xa4,   0x00 },
+	{ 0xa8,   0x00 },
+	{ 0xc5,   0x11 },
+	{ 0xc6,   0x51 },
+	{ 0xbf,   0x80 },
+	{ 0xc7,   0x10 },	/* simple AWB */
+	{ 0xb6,   0x66 },
+	{ 0xb8,   0xA5 },
+	{ 0xb7,   0x64 },
+	{ 0xb9,   0x7C },
+	{ 0xb3,   0xaf },
+	{ 0xb4,   0x97 },
+	{ 0xb5,   0xFF },
+	{ 0xb0,   0xC5 },
+	{ 0xb1,   0x94 },
+	{ 0xb2,   0x0f },
+	{ 0xc4,   0x5c },
+	{ 0xa6,   0x00 },
+	{ 0xa7,   0x20 },
+	{ 0xa7,   0xd8 },
+	{ 0xa7,   0x1b },
+	{ 0xa7,   0x31 },
+	{ 0xa7,   0x00 },
+	{ 0xa7,   0x18 },
+	{ 0xa7,   0x20 },
+	{ 0xa7,   0xd8 },
+	{ 0xa7,   0x19 },
+	{ 0xa7,   0x31 },
+	{ 0xa7,   0x00 },
+	{ 0xa7,   0x18 },
+	{ 0xa7,   0x20 },
+	{ 0xa7,   0xd8 },
+	{ 0xa7,   0x19 },
+	{ 0xa7,   0x31 },
+	{ 0xa7,   0x00 },
+	{ 0xa7,   0x18 },
+	{ 0x7f,   0x00 },
+	{ 0xe5,   0x1f },
+	{ 0xe1,   0x77 },
+	{ 0xdd,   0x7f },
+	{ CTRL0,  CTRL0_YUV422 | CTRL0_YUV_EN | CTRL0_RGB_EN },
+	ENDMARKER,
 };
 
+static int ov2640_write_array(struct i2c_client *client,
+	const struct regval_list *vals)
+{
+	int ret;
+
+	while ((vals->reg_num != 0xff) || (vals->value != 0xff)) {
+		ret = i2c_smbus_write_byte_data(client,
+			vals->reg_num, vals->value);
+		dev_vdbg(&client->dev, "array: 0x%02x, 0x%02x",
+			vals->reg_num, vals->value);
+
+		if (ret < 0)
+			return ret;
+		vals++;
+	}
+	return 0;
+}
+
+
+
+#define PER_SIZE_REG_SEQ(x, y, v_div, h_div, pclk_div)	\
+	{ CTRLI, CTRLI_LP_DP | CTRLI_V_DIV_SET(v_div) |	\
+		 CTRLI_H_DIV_SET(h_div)},		\
+	{ ZMOW, ZMOW_OUTW_SET(x) },			\
+	{ ZMOH, ZMOH_OUTH_SET(y) },			\
+	{ ZMHH, ZMHH_OUTW_SET(x) | ZMHH_OUTH_SET(y) },	\
+	{ R_DVP_SP, pclk_div },				\
+	{ RESET, 0x00}
+
+
+static const struct regval_list ov2640_uxga_regs[] = {
+	PER_SIZE_REG_SEQ(UXGA_WIDTH, UXGA_HEIGHT, 0, 0, 0),
+	{ CTRLI,    0x00},
+	{ R_DVP_SP, 0 | R_DVP_SP_AUTO_MODE },
+	ENDMARKER,
+};
+
+static const struct regval_list ov2640_vga_regs[] = {
+	PER_SIZE_REG_SEQ(VGA_WIDTH, VGA_HEIGHT, 0, 0, 2),
+	ENDMARKER,
+};
+
+
+static const struct regval_list ov2640_yuyv_regs[] = {
+	{ IMAGE_MODE, IMAGE_MODE_YUV422 },
+	{ 0xd7, 0x03 },
+	{ 0x33, 0xa0 },
+	{ 0xe5, 0x1f },
+	{ 0xe1, 0x67 },
+	{ RESET,  0x00 },
+	{ R_BYPASS, R_BYPASS_USE_DSP },
+	ENDMARKER,
+};
+
+static const struct regval_list ov2640_size_change_preamble_regs[] = {
+	{ BANK_SEL, BANK_SEL_DSP },
+	{ RESET, RESET_DVP },
+	{ SIZEL, SIZEL_HSIZE8_11_SET(UXGA_WIDTH) |
+		 SIZEL_HSIZE8_SET(UXGA_WIDTH) |
+		 SIZEL_VSIZE8_SET(UXGA_HEIGHT) },
+	{ HSIZE8, HSIZE8_SET(UXGA_WIDTH) },
+	{ VSIZE8, VSIZE8_SET(UXGA_HEIGHT) },
+	{ CTRL2, CTRL2_DCW_EN | CTRL2_SDE_EN |
+		 CTRL2_UV_AVG_EN | CTRL2_CMX_EN | CTRL2_UV_ADJ_EN },
+	{ HSIZE, HSIZE_SET(UXGA_WIDTH) },
+	{ VSIZE, VSIZE_SET(UXGA_HEIGHT) },
+	{ XOFFL, XOFFL_SET(0) },
+	{ YOFFL, YOFFL_SET(0) },
+	{ VHYX, VHYX_HSIZE_SET(UXGA_WIDTH) | VHYX_VSIZE_SET(UXGA_HEIGHT) |
+		VHYX_XOFF_SET(0) | VHYX_YOFF_SET(0)},
+	{ TEST, TEST_HSIZE_SET(UXGA_WIDTH) },
+	ENDMARKER,
+};
+
+static const struct regval_list ov2640_format_change_preamble_regs[] = {
+	{ BANK_SEL, BANK_SEL_DSP },
+	{ R_BYPASS, R_BYPASS_USE_DSP },
+	ENDMARKER,
+};
+
+
+static int ov2640_mask_set(struct i2c_client *client,
+	u8  reg, u8  mask, u8  set)
+{
+	s32 val = i2c_smbus_read_byte_data(client, reg);
+	if (val < 0)
+		return val;
+
+	val &= ~mask;
+	val |= set & mask;
+
+	dev_vdbg(&client->dev, "masks: 0x%02x, 0x%02x", reg, val);
+
+	return i2c_smbus_write_byte_data(client, reg, val);
+}
 
 static int ov2640initREG(struct nuvoton_vin_device* cam, struct i2c_client *pi2c)
 {
 	u16 reg;
-	int i = 0;
+	u8 val;
+
+#if 1
+	u8 pid, ver, midh, midl;
+	u8 ret;
+	const char *devname;
+	i2c_smbus_write_byte_data(pi2c, BANK_SEL, BANK_SEL_SENS);
+	pid = i2c_smbus_read_byte_data(pi2c, PID);
+	ver = i2c_smbus_read_byte_data(pi2c, VER);
+	midh = i2c_smbus_read_byte_data(pi2c, MIDH);
+	midl = i2c_smbus_read_byte_data(pi2c, MIDL);
+	
+	switch (VERSION(pid, ver)) {
+	case PID_OV2640:
+		devname = "ov2640";
+		break;
+	default:
+		dev_err(&pi2c->dev,
+			"Product ID error %x:%x\n", pid, ver);
+		ret = -ENODEV;
+		return ret;
+	}
+
+	dev_info(&pi2c->dev,
+		"%s Product ID %0x:%0x Manufacturer ID %x:%x\n",
+		devname, pid, ver, midh, midl);
+
+#else
+
 	SCCB_WR_Reg(OV2640_DSP_RA_DLMT, 0x01);	//操作sensor寄存器
 	SCCB_WR_Reg(OV2640_SENSOR_COM7, 0x80);	//软复位OV2640
 	msleep(50);
@@ -677,26 +688,19 @@ static int ov2640initREG(struct nuvoton_vin_device* cam, struct i2c_client *pi2c
 	} else {
 		printk("HID:%d check ok\n", reg);
 	}
+#endif
+	ov2640_write_array(pi2c, ov2640_init_regs);
+	ov2640_write_array(pi2c, ov2640_size_change_preamble_regs);
+	//ov2640_write_array(save_client, ov2640_vga_regs);
+	ov2640_write_array(pi2c, ov2640_uxga_regs);
+	ov2640_write_array(pi2c, ov2640_format_change_preamble_regs);
+	ov2640_write_array(pi2c, ov2640_yuyv_regs);
 
-	for (i = 0; i < sizeof(ov2640_svga_init_reg_tbl) / 2; i++) {
-		SCCB_WR_Reg(ov2640_svga_init_reg_tbl[i][0], ov2640_svga_init_reg_tbl[i][1]);
-	}
+	//val = (code == MEDIA_BUS_FMT_YVYU8_2X8)
+	//	|| (code == MEDIA_BUS_FMT_VYUY8_2X8) ? CTRL0_VFIRST : 0x00;
+	val = 0 ? CTRL0_VFIRST : 0x00;
 
-	//0x5a, 0xC8,
-	//	0x5b, 0x96,
-	//	0x5c, 0x00,
-
-
-	reg = SCCB_RD_Reg(0x5a);
-	printk("0x5a:%x check ok\n", reg);
-
-	reg = SCCB_RD_Reg(0x5b);
-	printk("0x5b:%x check ok\n", reg);
-
-
-	reg = SCCB_RD_Reg(0x5c);
-	printk("0x5b:%x check ok\n", reg);
-
+	reg = ov2640_mask_set(save_client, CTRL0, CTRL0_VFIRST, val);
 
 
 	return 0;
@@ -707,11 +711,7 @@ static int ov2640initREG(struct nuvoton_vin_device* cam, struct i2c_client *pi2c
 
 int nuvoton_vin_probe_ov2640(struct nuvoton_vin_device* cam)
 {
-	int i,j,ret = 0;
-	u8 pid,ver,midh,midl;
-	u8 tmp;
-	struct OV_RegValue *psRegValue;
-	struct OV_RegValue *psRegValue1;
+	int ret = 0;
 	ENTRY();	
 	nuvoton_vin_attach_sensor(cam, &ov2640);
 	
