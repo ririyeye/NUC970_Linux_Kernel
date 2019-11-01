@@ -697,6 +697,21 @@ static int ov2640_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_HFLIP:
 		val = ctrl->val ? REG04_HFLIP_IMG : 0x00;
 		return ov2640_mask_set(client, REG04, REG04_HFLIP_IMG, val);
+
+		//自动增益
+	case V4L2_CID_EXPOSURE_AUTO:
+
+		return 0;
+		//自动增益
+	case V4L2_CID_AUTOGAIN:
+		return 0;
+		//增益
+	case V4L2_CID_GAIN:
+		return 0;
+		//曝光
+	case V4L2_CID_EXPOSURE:
+		return 0;
+
 	case V4L2_CID_TEST_PATTERN:
 		val = ctrl->val ? COM7_COLOR_BAR_TEST : 0x00;
 		return ov2640_mask_set(client, COM7, COM7_COLOR_BAR_TEST, val);
@@ -828,15 +843,30 @@ static int ov2640_pri_init(struct i2c_client *client)
 	struct ov2640_priv	*priv;
 	int ret;
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv) {
+		return -1;
+	}
 
 	mutex_init(&priv->lock);
 
-	v4l2_ctrl_handler_init(&priv->hdl, 3);
+	v4l2_ctrl_handler_init(&priv->hdl, 7);
 	priv->hdl.lock = &priv->lock;
 	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
 		V4L2_CID_VFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
 		V4L2_CID_HFLIP, 0, 1, 1, 0);
+	//自动曝光
+	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
+		V4L2_CID_EXPOSURE_AUTO, 0, 1, 1, 0);
+	//自动增益
+	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
+		V4L2_CID_AUTOGAIN, 0, 1, 1, 0);
+	//增益
+	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
+		V4L2_CID_GAIN, 0, 32, 1, 0);
+	//曝光
+	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
+		V4L2_CID_EXPOSURE, 0, 1024, 1, 0);
 	v4l2_ctrl_new_std_menu_items(&priv->hdl, &ov2640_ctrl_ops,
 		V4L2_CID_TEST_PATTERN,
 		ARRAY_SIZE(ov2640_test_pattern_menu) - 1, 0, 0,
