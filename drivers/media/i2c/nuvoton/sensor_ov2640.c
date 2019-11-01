@@ -1,6 +1,12 @@
-#include <linux/delay.h>
+ï»¿#include <linux/delay.h>
 #include <linux/module.h>
+
 #include "nuc970_cap.h"
+
+#include <media/v4l2-device.h>
+#include <media/v4l2-ioctl.h>
+#include <media/v4l2-ctrls.h>
+#include <media/i2c-addr.h>
 
 static struct nuvoton_vin_sensor ov2640;
 
@@ -616,7 +622,6 @@ static const struct regval_list ov2640_format_change_preamble_regs[] = {
 	ENDMARKER,
 };
 
-
 static int ov2640_mask_set(struct i2c_client *client,
 	u8  reg, u8  mask, u8  set)
 {
@@ -631,6 +636,110 @@ static int ov2640_mask_set(struct i2c_client *client,
 
 	return i2c_smbus_write_byte_data(client, reg, val);
 }
+
+struct ov2640_priv {
+	struct v4l2_subdev		subdev;
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	struct media_pad pad;
+#endif
+	struct v4l2_ctrl_handler	hdl;
+	u32	cfmt_code;
+	struct clk			*clk;
+	const struct ov2640_win_size	*win;
+
+	struct gpio_desc *resetb_gpio;
+	struct gpio_desc *pwdn_gpio;
+
+	struct mutex lock; /* lock to protect streaming and power_count */
+	bool streaming;
+	int power_count;
+};
+
+
+static struct ov2640_priv *to_ov2640(const struct i2c_client *client)
+{
+	return container_of(i2c_get_clientdata(client), struct ov2640_priv,
+		subdev);
+}
+
+
+static int ov2640_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct v4l2_subdev *sd =
+		&container_of(ctrl->handler, struct ov2640_priv, hdl)->subdev;
+	struct i2c_client  *client = v4l2_get_subdevdata(sd);
+	struct ov2640_priv *priv = to_ov2640(client);
+	u8 val;
+	int ret;
+
+	/* v4l2_ctrl_lock() locks our own mutex */
+
+	/*
+	 * If the device is not powered up by the host driver, do not apply any
+	 * controls to H/W at this time. Instead the controls will be restored
+	 * when the streaming is started.
+	 */
+#if 0
+	if (!priv->power_count)
+		return 0;
+#endif
+
+	ret = i2c_smbus_write_byte_data(client, BANK_SEL, BANK_SEL_SENS);
+	if (ret < 0)
+		return ret;
+
+	switch (ctrl->id) {
+	case V4L2_CID_VFLIP:
+		val = ctrl->val ? REG04_VFLIP_IMG | REG04_VREF_EN : 0x00;
+		return ov2640_mask_set(client, REG04,
+			REG04_VFLIP_IMG | REG04_VREF_EN, val);
+		/* NOTE: REG04_VREF_EN: 1 line shift / even/odd line swap */
+	case V4L2_CID_HFLIP:
+		val = ctrl->val ? REG04_HFLIP_IMG : 0x00;
+		return ov2640_mask_set(client, REG04, REG04_HFLIP_IMG, val);
+	case V4L2_CID_TEST_PATTERN:
+		val = ctrl->val ? COM7_COLOR_BAR_TEST : 0x00;
+		return ov2640_mask_set(client, COM7, COM7_COLOR_BAR_TEST, val);
+	}
+
+	return -EINVAL;
+}
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int ov2640_g_register(struct v4l2_subdev *sd,
+	struct v4l2_dbg_register *reg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret;
+
+	reg->size = 1;
+	if (reg->reg > 0xff)
+		return -EINVAL;
+
+	ret = i2c_smbus_read_byte_data(client, reg->reg);
+	if (ret < 0)
+		return ret;
+
+	reg->val = ret;
+
+	return 0;
+}
+static int ov2640_s_register(struct v4l2_subdev *sd,
+	const struct v4l2_dbg_register *reg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	if (reg->reg > 0xff ||
+		reg->val > 0xff)
+		return -EINVAL;
+
+	return i2c_smbus_write_byte_data(client, reg->reg, reg->val);
+}
+#endif
+
+
+
+
 
 static int ov2640initREG(struct nuvoton_vin_device* cam, struct i2c_client *pi2c)
 {
@@ -664,12 +773,12 @@ static int ov2640initREG(struct nuvoton_vin_device* cam, struct i2c_client *pi2c
 
 #else
 
-	SCCB_WR_Reg(OV2640_DSP_RA_DLMT, 0x01);	//²Ù×÷sensor¼Ä´æÆ÷
-	SCCB_WR_Reg(OV2640_SENSOR_COM7, 0x80);	//Èí¸´Î»OV2640
+	SCCB_WR_Reg(OV2640_DSP_RA_DLMT, 0x01);	//æ“ä½œsensorå¯„å­˜å™¨
+	SCCB_WR_Reg(OV2640_SENSOR_COM7, 0x80);	//è½¯å¤ä½OV2640
 	msleep(50);
-	reg = SCCB_RD_Reg(OV2640_SENSOR_MIDH);	//¶ÁÈ¡³§¼ÒID ¸ß°ËÎ»
+	reg = SCCB_RD_Reg(OV2640_SENSOR_MIDH);	//è¯»å–å‚å®¶ID é«˜å…«ä½
 	reg <<= 8;
-	reg |= SCCB_RD_Reg(OV2640_SENSOR_MIDL);	//¶ÁÈ¡³§¼ÒID µÍ°ËÎ»
+	reg |= SCCB_RD_Reg(OV2640_SENSOR_MIDL);	//è¯»å–å‚å®¶ID ä½å…«ä½
 
 	if (reg != OV2640_MID) {
 		printk("MID:%d\n", reg);
@@ -679,9 +788,9 @@ static int ov2640initREG(struct nuvoton_vin_device* cam, struct i2c_client *pi2c
 	}
 
 
-	reg = SCCB_RD_Reg(OV2640_SENSOR_PIDH);	//¶ÁÈ¡³§¼ÒID ¸ß°ËÎ»
+	reg = SCCB_RD_Reg(OV2640_SENSOR_PIDH);	//è¯»å–å‚å®¶ID é«˜å…«ä½
 	reg <<= 8;
-	reg |= SCCB_RD_Reg(OV2640_SENSOR_PIDL);	//¶ÁÈ¡³§¼ÒID µÍ°ËÎ»
+	reg |= SCCB_RD_Reg(OV2640_SENSOR_PIDL);	//è¯»å–å‚å®¶ID ä½å…«ä½
 	if (reg != OV2640_PID) {
 		printk("HID:%d\n", reg);
 		return 2;
@@ -702,29 +811,73 @@ static int ov2640initREG(struct nuvoton_vin_device* cam, struct i2c_client *pi2c
 
 	reg = ov2640_mask_set(save_client, CTRL0, CTRL0_VFIRST, val);
 
-
 	return 0;
 }
 
+static const struct v4l2_ctrl_ops ov2640_ctrl_ops = {
+	.s_ctrl = ov2640_s_ctrl,
+};
 
+static const char * const ov2640_test_pattern_menu[] = {
+	"Disabled",
+	"Eight Vertical Colour Bars",
+};
+
+static int ov2640_pri_init(struct i2c_client *client)
+{
+	struct ov2640_priv	*priv;
+	int ret;
+	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+
+	mutex_init(&priv->lock);
+
+	v4l2_ctrl_handler_init(&priv->hdl, 3);
+	priv->hdl.lock = &priv->lock;
+	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
+		V4L2_CID_VFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
+		V4L2_CID_HFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std_menu_items(&priv->hdl, &ov2640_ctrl_ops,
+		V4L2_CID_TEST_PATTERN,
+		ARRAY_SIZE(ov2640_test_pattern_menu) - 1, 0, 0,
+		ov2640_test_pattern_menu);
+	priv->subdev.ctrl_handler = &priv->hdl;
+	if (priv->hdl.error) {
+		ret = priv->hdl.error;
+		goto err_hdl;
+	}
+	return 0;
+err_hdl:
+	v4l2_ctrl_handler_free(&priv->hdl);
+	mutex_destroy(&priv->lock);
+	return ret;
+}
 
 
 int nuvoton_vin_probe_ov2640(struct nuvoton_vin_device* cam)
 {
 	int ret = 0;
-	ENTRY();	
+	ENTRY();
 	nuvoton_vin_attach_sensor(cam, &ov2640);
-	
+
 	// if i2c module isn't loaded at this time
-	if (!sensor_inited){
+	if (!sensor_inited) {
 		printk("sensor_inited not init\n");
 		return -1;
 	}
 
 	ret = ov2640initREG(cam, save_client);
 
+	if (!ret) {
+		ret = ov2640_pri_init(save_client);
+		printk("error pri init RET = %d\n", ret);
+	} else {
+		printk("error init RET = %d\n", ret);
+	}
+
+
 	LEAVE();
-	return ret;	
+	return ret;
 }
 
 static const struct i2c_device_id sensor_id[] = {
