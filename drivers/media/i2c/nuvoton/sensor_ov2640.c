@@ -6,7 +6,10 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <media/i2c-addr.h>
+
+
 
 static struct nuvoton_vin_sensor ov2640;
 
@@ -687,7 +690,7 @@ static int ov2640_s_ctrl(struct v4l2_ctrl *ctrl)
 	ret = i2c_smbus_write_byte_data(client, BANK_SEL, BANK_SEL_SENS);
 	if (ret < 0)
 		return ret;
-
+	printk("ctrl->id = %d\n", ctrl->id);
 	switch (ctrl->id) {
 	case V4L2_CID_VFLIP:
 		val = ctrl->val ? REG04_VFLIP_IMG | REG04_VREF_EN : 0x00;
@@ -838,6 +841,46 @@ static const char * const ov2640_test_pattern_menu[] = {
 	"Eight Vertical Colour Bars",
 };
 
+static int ov2640_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct ov2640_priv *priv = to_ov2640(client);
+
+	mutex_lock(&priv->lock);
+#if 0
+	/*
+	 * If the power count is modified from 0 to != 0 or from != 0 to 0,
+	 * update the power state.
+	 */
+	if (priv->power_count == !on)
+		ov2640_set_power(priv, on);
+	priv->power_count += on ? 1 : -1;
+	WARN_ON(priv->power_count < 0);
+#endif
+	mutex_unlock(&priv->lock);
+
+	return 0;
+}
+
+static const struct v4l2_subdev_core_ops ov2640_subdev_core_ops = {
+	.log_status = v4l2_ctrl_subdev_log_status,
+	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.g_register = ov2640_g_register,
+	.s_register = ov2640_s_register,
+#endif
+	.s_power = ov2640_s_power,
+};
+
+
+static const struct v4l2_subdev_ops ov2640_subdev_ops = {
+	.core = &ov2640_subdev_core_ops,
+	//.pad = &ov2640_subdev_pad_ops,
+	//.video = &ov2640_subdev_video_ops,
+};
+
+
 static int ov2640_pri_init(struct i2c_client *client)
 {
 	struct ov2640_priv	*priv;
@@ -846,31 +889,39 @@ static int ov2640_pri_init(struct i2c_client *client)
 	if (!priv) {
 		return -1;
 	}
+	v4l2_i2c_subdev_init(&priv->subdev, client, &ov2640_subdev_ops);
 
 	mutex_init(&priv->lock);
 
-	v4l2_ctrl_handler_init(&priv->hdl, 7);
+	v4l2_ctrl_handler_init(&priv->hdl, 6);
 	priv->hdl.lock = &priv->lock;
 	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
 		V4L2_CID_VFLIP, 0, 1, 1, 0);
+	printk("err = %d\n", priv->hdl.error);
 	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
 		V4L2_CID_HFLIP, 0, 1, 1, 0);
+	printk("err = %d\n", priv->hdl.error);
 	//自动曝光
 	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
 		V4L2_CID_EXPOSURE_AUTO, 0, 1, 1, 0);
+	printk("err = %d\n", priv->hdl.error);
 	//自动增益
 	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
 		V4L2_CID_AUTOGAIN, 0, 1, 1, 0);
+	printk("err = %d\n", priv->hdl.error);
 	//增益
 	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
 		V4L2_CID_GAIN, 0, 32, 1, 0);
+	printk("err = %d\n", priv->hdl.error);
 	//曝光
 	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
 		V4L2_CID_EXPOSURE, 0, 1024, 1, 0);
+#if 0
 	v4l2_ctrl_new_std_menu_items(&priv->hdl, &ov2640_ctrl_ops,
 		V4L2_CID_TEST_PATTERN,
 		ARRAY_SIZE(ov2640_test_pattern_menu) - 1, 0, 0,
 		ov2640_test_pattern_menu);
+#endif
 	priv->subdev.ctrl_handler = &priv->hdl;
 	if (priv->hdl.error) {
 		ret = priv->hdl.error;
@@ -900,7 +951,7 @@ int nuvoton_vin_probe_ov2640(struct nuvoton_vin_device* cam)
 
 	if (!ret) {
 		ret = ov2640_pri_init(save_client);
-		printk("error pri init RET = %d\n", ret);
+		if (ret)printk("error pri init RET = %d\n", ret);
 	} else {
 		printk("error init RET = %d\n", ret);
 	}
