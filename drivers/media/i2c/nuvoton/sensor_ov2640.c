@@ -334,39 +334,6 @@ static int ov2640_init(struct nuvoton_vin_device* cam)
 	return err;
 }
 
-static struct nuvoton_vin_sensor ov2640 = {
-	.name = "ov2640",
-	.init = &ov2640_init,
-	.infmtord = (INORD_YUYV | INFMT_YCbCr | INTYPE_CCIR601),
-	//.polarity = (VSP_HI | HSP_LO | PCLKP_HI),
-	.polarity = (0 | 0 | PCLKP_HI),
-	.cropstart = (0 | 0 << 16), /*( Vertical | Horizontal<<16 ) */
-	//.cropstart = (1 | 0 << 16), /*( Vertical | Horizontal<<16 ) */
-
-	.cropcap = {
-		.bounds = {
-			.left = 0,
-			.top = 0,
-			.width = WIDTH_INIT,
-			.height = HEIGTH_INIT,
-		},
-		.defrect = {
-			.left = 0,
-			.top = 0,
-			.width = WIDTH_INIT,
-			.height = HEIGTH_INIT,
-		},
-	},
-	.pix_format = {
-		.width = WIDTH_INIT,
-		.height = HEIGTH_INIT,
-		.pixelformat = V4L2_PIX_FMT_YUYV,
-		.priv = 16,
-		//.colorspace = V4L2_COLORSPACE_JPEG,
-		.colorspace = V4L2_COLORSPACE_470_SYSTEM_BG,
-	},
-};
-
 
 static const struct regval_list ov2640_init_regs[] = {
 	{ BANK_SEL, BANK_SEL_DSP },
@@ -640,122 +607,151 @@ static int ov2640_mask_set(struct i2c_client *client,
 	return i2c_smbus_write_byte_data(client, reg, val);
 }
 
-struct ov2640_priv {
-	struct v4l2_subdev		subdev;
-#if defined(CONFIG_MEDIA_CONTROLLER)
-	struct media_pad pad;
-#endif
-	struct v4l2_ctrl_handler	hdl;
-	u32	cfmt_code;
-	struct clk			*clk;
-	const struct ov2640_win_size	*win;
+struct gain_val {
+	int x;
+	int y;
+	int val;
+};
 
-	struct gpio_desc *resetb_gpio;
-	struct gpio_desc *pwdn_gpio;
-
-	struct mutex lock; /* lock to protect streaming and power_count */
-	bool streaming;
-	int power_count;
+static const struct gain_val gain_list[] =
+{
+	{0,0,1},
+	{1,0,2},
+	{1,8,3},
+	{2,0,3},
+	{3,0,4},
+	{4,0,5},
+	{3,4,5},
+	{3,8,6},
+	{5,0,6},
+	{3,12,7},
+	{6,0,7},
+	{7,0,8},
+	{7,2,9},
+	{8,0,9},
+	{5,8,9},
+	{9,0,10},
+	{7,4,10},
+	{7,6,11},
+	{10,0,11},
+	{11,0,12},
+	{7,8,12},
+	{7,10,13},
+	{12,0,13},
+	{7,12,14},
+	{13,0,14},
+	{11,4,15},
+	{14,0,15},
+	{9,8,15},
+	{7,14,15},
+	{15,0,16},
+	{15,1,17},
+	{15,2,18},
+	{11,8,18},
+	{15,3,19},
+	{15,4,20},
+	{11,12,21},
+	{13,8,21},
+	{15,5,21},
+	{15,6,22},
+	{15,7,23},
+	{15,8,24},
+	{15,9,25},
+	{15,10,26},
+	{15,11,27},
+	{15,12,28},
+	{15,13,29},
+	{15,14,30},
+	{15,15,31},
 };
 
 
-static struct ov2640_priv *to_ov2640(const struct i2c_client *client)
+
+static int ov2640_set_ctrl(struct nuvotion_vin_device * cam, const struct v4l2_control * ctrl)
 {
-	return container_of(i2c_get_clientdata(client), struct ov2640_priv,
-		subdev);
-}
+	if (!ctrl) {
+		return -EINVAL;
+	}
 
+	int ctlID = ctrl->id;
+	int ctlVal = ctrl->value;
+	struct i2c_client * client = save_client;
 
-static int ov2640_s_ctrl(struct v4l2_ctrl *ctrl)
-{
-	struct v4l2_subdev *sd =
-		&container_of(ctrl->handler, struct ov2640_priv, hdl)->subdev;
-	struct i2c_client  *client = v4l2_get_subdevdata(sd);
-	struct ov2640_priv *priv = to_ov2640(client);
-	u8 val;
-	int ret;
-
-	/* v4l2_ctrl_lock() locks our own mutex */
-
-	/*
-	 * If the device is not powered up by the host driver, do not apply any
-	 * controls to H/W at this time. Instead the controls will be restored
-	 * when the streaming is started.
-	 */
-#if 0
-	if (!priv->power_count)
-		return 0;
-#endif
-
-	ret = i2c_smbus_write_byte_data(client, BANK_SEL, BANK_SEL_SENS);
+	int ret = i2c_smbus_write_byte_data(client, BANK_SEL, BANK_SEL_SENS);
 	if (ret < 0)
 		return ret;
-	printk("ctrl->id = %d\n", ctrl->id);
-	switch (ctrl->id) {
+	printk("ctrl->id = %d\n", ctlID);
+	printk("ctrl->val = %d\n", ctlVal);
+	switch (ctlID) {
 	case V4L2_CID_VFLIP:
-		val = ctrl->val ? REG04_VFLIP_IMG | REG04_VREF_EN : 0x00;
+		ctlVal = ctlVal ? REG04_VFLIP_IMG | REG04_VREF_EN : 0x00;
 		return ov2640_mask_set(client, REG04,
-			REG04_VFLIP_IMG | REG04_VREF_EN, val);
+			REG04_VFLIP_IMG | REG04_VREF_EN, ctlVal);
 		/* NOTE: REG04_VREF_EN: 1 line shift / even/odd line swap */
 	case V4L2_CID_HFLIP:
-		val = ctrl->val ? REG04_HFLIP_IMG : 0x00;
-		return ov2640_mask_set(client, REG04, REG04_HFLIP_IMG, val);
+		ctlVal = ctlVal ? REG04_HFLIP_IMG : 0x00;
+		return ov2640_mask_set(client, REG04, REG04_HFLIP_IMG, ctlVal);
 
 		//自动增益
 	case V4L2_CID_EXPOSURE_AUTO:
+		dev_info(&client->dev, "set V4L2_CID_EXPOSURE_AUTO = %d\n", ctlVal);
 
-		return 0;
+		if (ctlVal == V4L2_EXPOSURE_MANUAL) {
+
+			return ov2640_mask_set(client, COM8,
+				COM8_AEC_EN, 0);
+		}
+		if (ctlVal == V4L2_EXPOSURE_AUTO) {
+			return ov2640_mask_set(client, COM8,
+				COM8_AEC_EN, 1);
+		}
+		break;
 		//自动增益
 	case V4L2_CID_AUTOGAIN:
-		return 0;
+		dev_info(&client->dev, "set V4L2_CID_AUTOGAIN = %d\n", ctlVal);
+		return ov2640_mask_set(client, COM8,
+			COM8_AGC_EN, ctlVal ? COM8_AGC_EN : 0);
 		//增益
 	case V4L2_CID_GAIN:
-		return 0;
+		dev_info(&client->dev, "set V4L2_CID_GAIN = %d\n", ctlVal);
+		{
+			int len = sizeof(gain_list) / sizeof(struct gain_val);
+			int pos = 0;
+			for (pos = 0; pos < len; pos++) {
+				if (gain_list[pos].val == ctlVal) {
+					dev_info(&client->dev, "x = %d,y = %d \n", gain_list[pos].x, gain_list[pos].y);
+					return i2c_smbus_write_byte_data(client, GAIN, gain_list[pos].x << 4 | gain_list[pos].y);
+				}
+			}
+		}
+		break;
 		//曝光
 	case V4L2_CID_EXPOSURE:
-		return 0;
 
-	case V4L2_CID_TEST_PATTERN:
-		val = ctrl->val ? COM7_COLOR_BAR_TEST : 0x00;
-		return ov2640_mask_set(client, COM7, COM7_COLOR_BAR_TEST, val);
+		if (ctlVal > 0 && ctlVal < 1024) {
+			//Shutter = (reg0x45 & 0x3f) << 10 + reg0x10 << 2 + (reg0x04 & 0x03);
+			unsigned char inputval[3] = { (ctlVal >> 10) & 0x3f ,(ctlVal >> 2) & 0xff ,ctlVal & 0x3 };
+			int ret = 0;
+			dev_info(&client->dev, "val = %d , write info = %x,%x,%x\n", ctlVal, inputval[0], inputval[1], inputval[2]);
+
+			if (0 > (ret = ov2640_mask_set(client, 0x45, 0x3f, inputval[0]))) {
+				return ret;
+			}
+			if (0 > (ret = i2c_smbus_write_byte_data(client, 0x10, inputval[1]))) {
+				return ret;
+			}
+			if (0 > (ret = ov2640_mask_set(client, 0x4, 0x03, inputval[2]))) {
+				return ret;
+			}
+
+			return ret;
+		}
+		break;
+	default:
+		break;
 	}
-
 	return -EINVAL;
 }
-
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-static int ov2640_g_register(struct v4l2_subdev *sd,
-	struct v4l2_dbg_register *reg)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
-
-	reg->size = 1;
-	if (reg->reg > 0xff)
-		return -EINVAL;
-
-	ret = i2c_smbus_read_byte_data(client, reg->reg);
-	if (ret < 0)
-		return ret;
-
-	reg->val = ret;
-
-	return 0;
-}
-static int ov2640_s_register(struct v4l2_subdev *sd,
-	const struct v4l2_dbg_register *reg)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (reg->reg > 0xff ||
-		reg->val > 0xff)
-		return -EINVAL;
-
-	return i2c_smbus_write_byte_data(client, reg->reg, reg->val);
-}
-#endif
-
-
 
 
 
@@ -764,7 +760,6 @@ static int ov2640initREG(struct nuvoton_vin_device* cam, struct i2c_client *pi2c
 	u16 reg;
 	u8 val;
 
-#if 1
 	u8 pid, ver, midh, midl;
 	u8 ret;
 	const char *devname;
@@ -789,33 +784,6 @@ static int ov2640initREG(struct nuvoton_vin_device* cam, struct i2c_client *pi2c
 		"%s Product ID %0x:%0x Manufacturer ID %x:%x\n",
 		devname, pid, ver, midh, midl);
 
-#else
-
-	SCCB_WR_Reg(OV2640_DSP_RA_DLMT, 0x01);	//操作sensor寄存器
-	SCCB_WR_Reg(OV2640_SENSOR_COM7, 0x80);	//软复位OV2640
-	msleep(50);
-	reg = SCCB_RD_Reg(OV2640_SENSOR_MIDH);	//读取厂家ID 高八位
-	reg <<= 8;
-	reg |= SCCB_RD_Reg(OV2640_SENSOR_MIDL);	//读取厂家ID 低八位
-
-	if (reg != OV2640_MID) {
-		printk("MID:%d\n", reg);
-		return -1;
-	} else {
-		printk("MID:%d check ok\n", reg);
-	}
-
-
-	reg = SCCB_RD_Reg(OV2640_SENSOR_PIDH);	//读取厂家ID 高八位
-	reg <<= 8;
-	reg |= SCCB_RD_Reg(OV2640_SENSOR_PIDL);	//读取厂家ID 低八位
-	if (reg != OV2640_PID) {
-		printk("HID:%d\n", reg);
-		return 2;
-	} else {
-		printk("HID:%d check ok\n", reg);
-	}
-#endif
 	ov2640_write_array(pi2c, ov2640_init_regs);
 	ov2640_write_array(pi2c, ov2640_size_change_preamble_regs);
 	//ov2640_write_array(save_client, ov2640_vga_regs);
@@ -832,107 +800,38 @@ static int ov2640initREG(struct nuvoton_vin_device* cam, struct i2c_client *pi2c
 	return 0;
 }
 
-static const struct v4l2_ctrl_ops ov2640_ctrl_ops = {
-	.s_ctrl = ov2640_s_ctrl,
+static struct nuvoton_vin_sensor ov2640 = {
+	.name = "ov2640",
+	.init = &ov2640_init,
+	.infmtord = (INORD_YUYV | INFMT_YCbCr | INTYPE_CCIR601),
+	//.polarity = (VSP_HI | HSP_LO | PCLKP_HI),
+	.polarity = (0 | 0 | PCLKP_HI),
+	.cropstart = (0 | 0 << 16), /*( Vertical | Horizontal<<16 ) */
+	//.cropstart = (1 | 0 << 16), /*( Vertical | Horizontal<<16 ) */
+	.set_ctrl = ov2640_set_ctrl,
+	.cropcap = {
+		.bounds = {
+			.left = 0,
+			.top = 0,
+			.width = WIDTH_INIT,
+			.height = HEIGTH_INIT,
+		},
+		.defrect = {
+			.left = 0,
+			.top = 0,
+			.width = WIDTH_INIT,
+			.height = HEIGTH_INIT,
+		},
+	},
+	.pix_format = {
+		.width = WIDTH_INIT,
+		.height = HEIGTH_INIT,
+		.pixelformat = V4L2_PIX_FMT_YUYV,
+		.priv = 16,
+		//.colorspace = V4L2_COLORSPACE_JPEG,
+		.colorspace = V4L2_COLORSPACE_470_SYSTEM_BG,
+	},
 };
-
-static const char * const ov2640_test_pattern_menu[] = {
-	"Disabled",
-	"Eight Vertical Colour Bars",
-};
-
-static int ov2640_s_power(struct v4l2_subdev *sd, int on)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ov2640_priv *priv = to_ov2640(client);
-
-	mutex_lock(&priv->lock);
-#if 0
-	/*
-	 * If the power count is modified from 0 to != 0 or from != 0 to 0,
-	 * update the power state.
-	 */
-	if (priv->power_count == !on)
-		ov2640_set_power(priv, on);
-	priv->power_count += on ? 1 : -1;
-	WARN_ON(priv->power_count < 0);
-#endif
-	mutex_unlock(&priv->lock);
-
-	return 0;
-}
-
-static const struct v4l2_subdev_core_ops ov2640_subdev_core_ops = {
-	.log_status = v4l2_ctrl_subdev_log_status,
-	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
-	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	.g_register = ov2640_g_register,
-	.s_register = ov2640_s_register,
-#endif
-	.s_power = ov2640_s_power,
-};
-
-
-static const struct v4l2_subdev_ops ov2640_subdev_ops = {
-	.core = &ov2640_subdev_core_ops,
-	//.pad = &ov2640_subdev_pad_ops,
-	//.video = &ov2640_subdev_video_ops,
-};
-
-
-static int ov2640_pri_init(struct i2c_client *client)
-{
-	struct ov2640_priv	*priv;
-	int ret;
-	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		return -1;
-	}
-	v4l2_i2c_subdev_init(&priv->subdev, client, &ov2640_subdev_ops);
-
-	mutex_init(&priv->lock);
-
-	v4l2_ctrl_handler_init(&priv->hdl, 6);
-	priv->hdl.lock = &priv->lock;
-	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
-		V4L2_CID_VFLIP, 0, 1, 1, 0);
-	printk("err = %d\n", priv->hdl.error);
-	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
-		V4L2_CID_HFLIP, 0, 1, 1, 0);
-	printk("err = %d\n", priv->hdl.error);
-	//自动曝光
-	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
-		V4L2_CID_EXPOSURE_AUTO, 0, 1, 1, 0);
-	printk("err = %d\n", priv->hdl.error);
-	//自动增益
-	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
-		V4L2_CID_AUTOGAIN, 0, 1, 1, 0);
-	printk("err = %d\n", priv->hdl.error);
-	//增益
-	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
-		V4L2_CID_GAIN, 0, 32, 1, 0);
-	printk("err = %d\n", priv->hdl.error);
-	//曝光
-	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
-		V4L2_CID_EXPOSURE, 0, 1024, 1, 0);
-#if 0
-	v4l2_ctrl_new_std_menu_items(&priv->hdl, &ov2640_ctrl_ops,
-		V4L2_CID_TEST_PATTERN,
-		ARRAY_SIZE(ov2640_test_pattern_menu) - 1, 0, 0,
-		ov2640_test_pattern_menu);
-#endif
-	priv->subdev.ctrl_handler = &priv->hdl;
-	if (priv->hdl.error) {
-		ret = priv->hdl.error;
-		goto err_hdl;
-	}
-	return 0;
-err_hdl:
-	v4l2_ctrl_handler_free(&priv->hdl);
-	mutex_destroy(&priv->lock);
-	return ret;
-}
 
 
 int nuvoton_vin_probe_ov2640(struct nuvoton_vin_device* cam)
@@ -948,14 +847,6 @@ int nuvoton_vin_probe_ov2640(struct nuvoton_vin_device* cam)
 	}
 
 	ret = ov2640initREG(cam, save_client);
-
-	if (!ret) {
-		ret = ov2640_pri_init(save_client);
-		if (ret)printk("error pri init RET = %d\n", ret);
-	} else {
-		printk("error init RET = %d\n", ret);
-	}
-
 
 	LEAVE();
 	return ret;
