@@ -1,14 +1,14 @@
-﻿#include <linux/delay.h>
+#include <linux/delay.h>
 #include <linux/module.h>
 
 #include "nuc970_cap.h"
-
+#include "nuc970_sensor.h"
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
 #include <media/i2c-addr.h>
-
+#include <linux/videodev2.h>
 
 
 static struct nuvoton_vin_sensor ov2640;
@@ -667,21 +667,19 @@ static const struct gain_val gain_list[] =
 
 
 
-static int ov2640_set_ctrl(struct nuvotion_vin_device * cam, const struct v4l2_control * ctrl)
+int ov2640_set_ctrl(struct nuvotion_vin_device * cam, struct v4l2_control * ctrl)
 {
+	int ctlID = ctrl->id;
+	int ctlVal = ctrl->value;
+	struct i2c_client * client = save_client;
+	int ret;
 	if (!ctrl) {
 		return -EINVAL;
 	}
 
-	int ctlID = ctrl->id;
-	int ctlVal = ctrl->value;
-	struct i2c_client * client = save_client;
-
-	int ret = i2c_smbus_write_byte_data(client, BANK_SEL, BANK_SEL_SENS);
+	ret = i2c_smbus_write_byte_data(client, BANK_SEL, BANK_SEL_SENS);
 	if (ret < 0)
 		return ret;
-	printk("ctrl->id = %d\n", ctlID);
-	printk("ctrl->val = %d\n", ctlVal);
 	switch (ctlID) {
 	case V4L2_CID_VFLIP:
 		ctlVal = ctlVal ? REG04_VFLIP_IMG | REG04_VREF_EN : 0x00;
@@ -694,8 +692,6 @@ static int ov2640_set_ctrl(struct nuvotion_vin_device * cam, const struct v4l2_c
 
 		//自动增益
 	case V4L2_CID_EXPOSURE_AUTO:
-		dev_info(&client->dev, "set V4L2_CID_EXPOSURE_AUTO = %d\n", ctlVal);
-
 		if (ctlVal == V4L2_EXPOSURE_MANUAL) {
 
 			return ov2640_mask_set(client, COM8,
@@ -708,32 +704,27 @@ static int ov2640_set_ctrl(struct nuvotion_vin_device * cam, const struct v4l2_c
 		break;
 		//自动增益
 	case V4L2_CID_AUTOGAIN:
-		dev_info(&client->dev, "set V4L2_CID_AUTOGAIN = %d\n", ctlVal);
 		return ov2640_mask_set(client, COM8,
 			COM8_AGC_EN, ctlVal ? COM8_AGC_EN : 0);
 		//增益
 	case V4L2_CID_GAIN:
-		dev_info(&client->dev, "set V4L2_CID_GAIN = %d\n", ctlVal);
-		{
-			int len = sizeof(gain_list) / sizeof(struct gain_val);
-			int pos = 0;
-			for (pos = 0; pos < len; pos++) {
-				if (gain_list[pos].val == ctlVal) {
-					dev_info(&client->dev, "x = %d,y = %d \n", gain_list[pos].x, gain_list[pos].y);
-					return i2c_smbus_write_byte_data(client, GAIN, gain_list[pos].x << 4 | gain_list[pos].y);
-				}
+	{
+		int len = sizeof(gain_list) / sizeof(struct gain_val);
+		int pos = 0;
+		for (pos = 0; pos < len; pos++) {
+			if (gain_list[pos].val == ctlVal) {
+				return i2c_smbus_write_byte_data(client, GAIN, gain_list[pos].x << 4 | gain_list[pos].y);
 			}
 		}
-		break;
-		//曝光
+	}
+	break;
+	//曝光
 	case V4L2_CID_EXPOSURE:
 
 		if (ctlVal > 0 && ctlVal < 1024) {
 			//Shutter = (reg0x45 & 0x3f) << 10 + reg0x10 << 2 + (reg0x04 & 0x03);
 			unsigned char inputval[3] = { (ctlVal >> 10) & 0x3f ,(ctlVal >> 2) & 0xff ,ctlVal & 0x3 };
 			int ret = 0;
-			dev_info(&client->dev, "val = %d , write info = %x,%x,%x\n", ctlVal, inputval[0], inputval[1], inputval[2]);
-
 			if (0 > (ret = ov2640_mask_set(client, 0x45, 0x3f, inputval[0]))) {
 				return ret;
 			}

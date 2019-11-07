@@ -19,7 +19,7 @@
 #include <linux/kref.h>
 
 
-#if 1
+#if 0
 #define VDI_DEBUG_ENABLE_ENTER_LEAVE
 #define VDI_DEBUG
 #endif
