@@ -56,6 +56,7 @@
 #include <linux/platform_data/spi-nuc970.h>
 #include <linux/platform_data/dma-nuc970.h>
 #include <linux/platform_data/keypad-nuc970.h>
+#include <linux/platform_data/cap-nuc970.h>
 
 #include "cpu.h"
 
@@ -630,11 +631,19 @@ static struct resource nuc970_cap_resource[] = {
         }
 };
 
+struct nuc970_platform_cap capio= {
+	.reset_io = NUC970_PB3,
+	.power_io = NUC970_PB2,
+};
+
 struct platform_device nuc970_device_cap = {
         .name		  = "nuc970-videoin",
         .id		  = -1,
         .num_resources	  = ARRAY_SIZE(nuc970_cap_resource),
         .resource	  = nuc970_cap_resource,
+		.dev 	= {
+			.platform_data = &capio,
+		}
 };
 
 #endif

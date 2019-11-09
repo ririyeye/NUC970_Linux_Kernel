@@ -48,7 +48,9 @@
 #include <linux/time.h>
 
 #include "nuc970_cap.h"
-
+#include <mach/gpio.h>
+#include <linux/gpio.h>
+#include <linux/platform_data/cap-nuc970.h>
 
 #define SENSOR_OV7725		0
 #define SENSOR_NT99141	1
@@ -73,10 +75,13 @@ static unsigned int frame_timeout = NUVOTON_FRAME_TIMEOUT;
 
 static struct nuvoton_vin_device* nuvoton_cam[NUVOTON_MAX_DEVICES];
 
-u32 sensor_pd = 0;  //0:PI0, 1:PI2
 u32 video_freq = 24000000;
 static unsigned int lcm_baddr;
 static int lcm_flag=0;
+
+static int reset_io = -1;
+static int power_io = -1;
+
 
 void nuvoton_vdi_enable(void){	
 	int i;
@@ -1092,21 +1097,29 @@ static void nuvoton_vin_release_resources(struct kref *kref)
 }
 
 
-int capture_uninit(void){
-	
-	/* GPIOI0 set to low  */
-if(sensor_pd==0)
+int capture_uninit(void)
 {
-	__raw_writel( (__raw_readl(REG_MFP_GPI_L) & ~0x0000000F) ,REG_MFP_GPI_L);
-	__raw_writel((__raw_readl(GPIO_BA+0x200) | 0x0001),(GPIO_BA+0x200)); /* GPIOI0 Output mode */
-	__raw_writel((__raw_readl(GPIO_BA+0x204) | 0x0001),(GPIO_BA+0x204)); /* GPIOI0 Output to low */
-}
-else{
-	__raw_writel( (__raw_readl(REG_MFP_GPI_L) & ~0x00000F00) ,REG_MFP_GPI_L);
-	__raw_writel((__raw_readl(GPIO_BA+0x200) | 0x0004),(GPIO_BA+0x200)); /* GPIOI0 Output mode */
-	__raw_writel((__raw_readl(GPIO_BA+0x204) | 0x0004),(GPIO_BA+0x204)); /* GPIOI0 Output to low */
-}
-return 0;
+#if 0
+	/* GPIOI0 set to low  */
+	if (sensor_pd == 0) {
+		__raw_writel((__raw_readl(REG_MFP_GPI_L) & ~0x0000000F), REG_MFP_GPI_L);
+		__raw_writel((__raw_readl(GPIO_BA + 0x200) | 0x0001), (GPIO_BA + 0x200)); /* GPIOI0 Output mode */
+		__raw_writel((__raw_readl(GPIO_BA + 0x204) | 0x0001), (GPIO_BA + 0x204)); /* GPIOI0 Output to low */
+	} else {
+		__raw_writel((__raw_readl(REG_MFP_GPI_L) & ~0x00000F00), REG_MFP_GPI_L);
+		__raw_writel((__raw_readl(GPIO_BA + 0x200) | 0x0004), (GPIO_BA + 0x200)); /* GPIOI0 Output mode */
+		__raw_writel((__raw_readl(GPIO_BA + 0x204) | 0x0004), (GPIO_BA + 0x204)); /* GPIOI0 Output to low */
+	}
+#endif
+	if (reset_io >= 0) {
+		gpio_direction_output(reset_io, 0);
+	}
+
+	if (power_io >= 0) {
+		gpio_direction_output(power_io, 0);
+	}
+
+	return 0;
 }
 int capture_init(struct nuvoton_vin_device* cam)
 {
@@ -1149,7 +1162,7 @@ int capture_init(struct nuvoton_vin_device* cam)
 		}		
 		clk_set_parent(clkmux, clkaplldiv);
 		clk_set_rate(clkcap, video_freq);
-	
+#if 0
 	/* GPIOI7 set to high */
 	__raw_writel( (__raw_readl(REG_MFP_GPI_L) & ~0xF0000000) ,REG_MFP_GPI_L);
 	__raw_writel((__raw_readl(GPIO_BA+0x200) | 0x0080),(GPIO_BA+0x200)); /* GPIOI7 Output mode */
@@ -1166,6 +1179,16 @@ int capture_init(struct nuvoton_vin_device* cam)
 		__raw_writel((__raw_readl(GPIO_BA+0x200) | 0x0004),(GPIO_BA+0x200)); /* GPIOI0 Output mode */
 		__raw_writel((__raw_readl(GPIO_BA+0x204) &~ 0x0004),(GPIO_BA+0x204)); /* GPIOI0 Output to low */
 	}
+#else
+		if (reset_io >= 0) {
+			gpio_direction_output(reset_io, 1);
+		}
+
+		if (power_io >= 0) {
+			gpio_direction_output(power_io, 0);
+		}
+#endif
+
 
 	return 0;
 }
@@ -1708,18 +1731,35 @@ Max number of video_devices can be registered at the same time: 32 */
 static int nuvoton_cap_device_probe(struct platform_device *pdev)
 {
 	int i,ret = -ENOMEM;
-	ENTRY();	
+
+	ENTRY();
+	
 	printk("%s - pdev = %s\n", __func__, pdev->name);
 	
 	#ifndef CONFIG_OF
 	
 	video_freq = CONFIG_VIDOE_FREQ;
-	#ifdef CONFIG_SENSOR_PD_PI0
-		sensor_pd=0;
-	#else
-		sensor_pd=1;
-	#endif
-	
+	if (pdev && pdev->dev.platform_data) {
+		struct nuc970_platform_cap *cap_io = pdev->dev.platform_data;
+
+		if (cap_io->reset_io >= 0) {
+			i = devm_gpio_request(&pdev->dev, cap_io->reset_io, "RESET-2640");
+			if (i < 0) {
+				dev_err(&pdev->dev, "get 2640 reset error = %d\n", i);
+			} else {
+				reset_io = cap_io->reset_io;
+			}
+		}
+
+		if (cap_io->power_io >= 0) {
+			i = devm_gpio_request(&pdev->dev, cap_io->power_io, "POWER-2640");
+			if (i < 0) {
+				dev_err(&pdev->dev, "get 2640 power error = %d\n", i);
+			} else {
+				power_io = cap_io->power_io;
+			}
+		}
+	}
 	#else
 	{
 		const char *pstr;
