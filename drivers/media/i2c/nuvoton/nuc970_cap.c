@@ -1099,18 +1099,6 @@ static void nuvoton_vin_release_resources(struct kref *kref)
 
 int capture_uninit(void)
 {
-#if 0
-	/* GPIOI0 set to low  */
-	if (sensor_pd == 0) {
-		__raw_writel((__raw_readl(REG_MFP_GPI_L) & ~0x0000000F), REG_MFP_GPI_L);
-		__raw_writel((__raw_readl(GPIO_BA + 0x200) | 0x0001), (GPIO_BA + 0x200)); /* GPIOI0 Output mode */
-		__raw_writel((__raw_readl(GPIO_BA + 0x204) | 0x0001), (GPIO_BA + 0x204)); /* GPIOI0 Output to low */
-	} else {
-		__raw_writel((__raw_readl(REG_MFP_GPI_L) & ~0x00000F00), REG_MFP_GPI_L);
-		__raw_writel((__raw_readl(GPIO_BA + 0x200) | 0x0004), (GPIO_BA + 0x200)); /* GPIOI0 Output mode */
-		__raw_writel((__raw_readl(GPIO_BA + 0x204) | 0x0004), (GPIO_BA + 0x204)); /* GPIOI0 Output to low */
-	}
-#endif
 	if (reset_io >= 0) {
 		gpio_direction_output(reset_io, 0);
 	}
@@ -1123,72 +1111,53 @@ int capture_uninit(void)
 }
 int capture_init(struct nuvoton_vin_device* cam)
 {
-  int ret;
-  struct clk *clkcap,*clkaplldiv,*clkmux;	
+	int ret;
+	struct clk *clkcap, *clkaplldiv, *clkmux;
 	struct clk *clk;
 	ENTRY();
-	
+
 	clk = clk_get(NULL, "cap_eclk");
-	if (IS_ERR(clk)) {	
+	if (IS_ERR(clk)) {
 		return -ENOENT;
 	}
-	
+
 	clk_prepare(clk);
 	clk_enable(clk);
 
 	clk_prepare(clk_get(NULL, "cap_hclk"));
 	clk_enable(clk_get(NULL, "cap_hclk"));
-	
+
 	clk_prepare(clk_get(NULL, "sensor_hclk"));
-  clk_enable(clk_get(NULL, "sensor_hclk"));
+	clk_enable(clk_get(NULL, "sensor_hclk"));
 
 	clkmux = clk_get(NULL, "cap_eclk_mux");
-        if (IS_ERR(clkmux)) {
-			printk(KERN_ERR "nuc970-audio:failed to get cap clock source\n");
-			ret = PTR_ERR(clkmux);
-			return ret;
-		}
-	clkcap = clk_get(NULL, "cap_eclk");
-        if (IS_ERR(clkcap)) {
-			printk(KERN_ERR "nuc970-cap:failed to get cap clock source\n");
-			ret = PTR_ERR(clkcap);
-			return ret;
-		}
-	clkaplldiv = clk_get(NULL, "cap_uplldiv");
-        if (IS_ERR(clkaplldiv)) {
-			printk(KERN_ERR "nuc970-cap:failed to get cap clock source\n");
-			ret = PTR_ERR(clkaplldiv);
-			return ret;
-		}		
-		clk_set_parent(clkmux, clkaplldiv);
-		clk_set_rate(clkcap, video_freq);
-#if 0
-	/* GPIOI7 set to high */
-	__raw_writel( (__raw_readl(REG_MFP_GPI_L) & ~0xF0000000) ,REG_MFP_GPI_L);
-	__raw_writel((__raw_readl(GPIO_BA+0x200) | 0x0080),(GPIO_BA+0x200)); /* GPIOI7 Output mode */
-	__raw_writel((__raw_readl(GPIO_BA+0x204) | 0x0080),(GPIO_BA+0x204)); /* GPIOI7 Output to high */
-	
-	/* GPIOI0 set to low  */
-	if(sensor_pd==0)
-	{
-		__raw_writel( (__raw_readl(REG_MFP_GPI_L) & ~0x0000000F) ,REG_MFP_GPI_L);
-		__raw_writel((__raw_readl(GPIO_BA+0x200) | 0x0001),(GPIO_BA+0x200)); /* GPIOI0 Output mode */
-		__raw_writel((__raw_readl(GPIO_BA+0x204) &~ 0x0001),(GPIO_BA+0x204)); /* GPIOI0 Output to low */
-	}else{
-		__raw_writel( (__raw_readl(REG_MFP_GPI_L) & ~0x00000F00) ,REG_MFP_GPI_L);
-		__raw_writel((__raw_readl(GPIO_BA+0x200) | 0x0004),(GPIO_BA+0x200)); /* GPIOI0 Output mode */
-		__raw_writel((__raw_readl(GPIO_BA+0x204) &~ 0x0004),(GPIO_BA+0x204)); /* GPIOI0 Output to low */
+	if (IS_ERR(clkmux)) {
+		printk(KERN_ERR "nuc970-audio:failed to get cap clock source\n");
+		ret = PTR_ERR(clkmux);
+		return ret;
 	}
-#else
-		if (reset_io >= 0) {
-			gpio_direction_output(reset_io, 1);
-		}
+	clkcap = clk_get(NULL, "cap_eclk");
+	if (IS_ERR(clkcap)) {
+		printk(KERN_ERR "nuc970-cap:failed to get cap clock source\n");
+		ret = PTR_ERR(clkcap);
+		return ret;
+	}
+	clkaplldiv = clk_get(NULL, "cap_uplldiv");
+	if (IS_ERR(clkaplldiv)) {
+		printk(KERN_ERR "nuc970-cap:failed to get cap clock source\n");
+		ret = PTR_ERR(clkaplldiv);
+		return ret;
+	}
+	clk_set_parent(clkmux, clkaplldiv);
+	clk_set_rate(clkcap, video_freq);
 
-		if (power_io >= 0) {
-			gpio_direction_output(power_io, 0);
-		}
-#endif
+	if (reset_io >= 0) {
+		gpio_direction_output(reset_io, 1);
+	}
 
+	if (power_io >= 0) {
+		gpio_direction_output(power_io, 0);
+	}
 
 	return 0;
 }
@@ -1781,13 +1750,7 @@ static int nuvoton_cap_device_probe(struct platform_device *pdev)
 		}else if(pstr[0]=='o' && pstr[1]=='v' && pstr[2]=='2' && pstr[3]=='6' && pstr[4]=='4' && pstr[5]=='0'){
 			sensor_model = 5;
 		}
-		
-		of_property_read_string(pdev->dev.of_node,"powerdown-pin",&pstr1);		
-		if(pstr1[2] == '0')
-			sensor_pd=0;
-		else
-			sensor_pd=1;
-	 
+
 		pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
 		if (IS_ERR(pinctrl)) {
 			return PTR_ERR(pinctrl);
